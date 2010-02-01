@@ -10,10 +10,10 @@ logger = logging.getLogger("EpcLogger")
 multiprocessing.log_to_stderr(logging.DEBUG)
 
 from RILCommonModules.RILSetup import *
-from CentralizedTaskServer.data_manager import *
-from CentralizedTaskServer.dbus_emitter import *
-from CentralizedTaskServer.dbus_listener import *
-from CentralizedTaskServer.taskinfo_updater import *
+from DistributedTaskServer.data_manager import *
+from DistributedTaskServer.dbus_emitter import *
+from DistributedTaskServer.dbus_listener import *
+from DistributedTaskServer.taskinfo_updater import *
 
 def main():
         logging.debug("--- Start EPC---")

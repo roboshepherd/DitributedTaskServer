@@ -7,7 +7,7 @@ import sys
 
 from RILCommonModules.RILSetup import  *
 from RILCommonModules.task_info import *
-from CentralizedTaskServer.data_manager import *
+from DistributedTaskServer.data_manager import *
 
 logger = logging.getLogger("EpcLogger")
 

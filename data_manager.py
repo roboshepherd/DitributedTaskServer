@@ -8,5 +8,6 @@ class DataManager:
         self.mTaskInfoAvailable = self.mgr.Event() 
         # set by taskinfo updater 
         self.mTaskWorkers = self.mgr.dict()  
-        # key:robotid v: taskid recvd. by dbus client 
-
+        # key:robotid val: taskid recvd. by dbus client
+        self.mTaskNeighbors = self.mgr.dict()
+        #key: taskid, val: neighboring robots around the task
