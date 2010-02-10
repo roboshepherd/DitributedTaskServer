@@ -20,6 +20,8 @@ def task_neighbor_signal_handler(taskid, neighbors):
 		print "Task: %i, got neighboring robots:" %(taskid)
 		print n
 		datamgr_proxy.mTaskNeighbors[taskid] = n
+		if (not datamgr_proxy.mTaskNeighborsAvailable.is_set()):
+			datamgr_proxy.mTaskNeighborsAvailable.set()
 	except Exception, e:
 		print "Err in task_neighbor_signal_handler():", e
 
@@ -33,6 +35,8 @@ def pose_signal_handler(sig,  robotid,  taskid):
 		datamgr_proxy.mTaskWorkers[robotid] = taskid
 		print "Save Task Status:"
 		print datamgr_proxy.mTaskWorkers
+		if (not datamgr_proxy.mTaskNeighborsAvailable.is_set()):
+			datamgr_proxy.mTaskNeighborsAvailable.set()
 	except Exception, e:
 		print "Err in save_task_status():", e
 

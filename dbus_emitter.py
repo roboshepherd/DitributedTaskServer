@@ -30,16 +30,21 @@ class TaskInfoSignal(dbus.service.Object):
 #Emit DBus-Signal
 def emit_task_signal(sig1,  inc):
         #print "At emit_task_signal():"
-        schedule.enter(inc, 0, emit_task_signal, (sig1,  inc)) # re-schedule to repeat this function
+        schedule.enter(inc, 0, emit_task_signal, (sig1,  inc))
+        # re-schedule to repeat this function
         global datamgr_proxy,  task_signal
         try:
-            datamgr_proxy.mTaskInfoAvailable.wait()
+            datamgr_proxy.mTaskInfoAvailable.wait() # taskinfo_updater event
             taskinfo = datamgr_proxy.mTaskInfo.copy() # use a soft copy
-            datamgr_proxy.mTaskInfoAvailable.clear()
+            if datamgr_proxy.mTaskInfoAvailable.is_set():
+                datamgr_proxy.mTaskInfoAvailable.clear()
             #logging.debug("TaskInfo@Emitter: %s",  taskinfo)
-            #print "\tEmitting TaskInfo signal>>> "                  
+            print "\tEmitting TaskInfo signal>>> "
+            datamgr_proxy.mTaskNeighborsAvailable.wait() # dbus_listener event                 
             neighbor_dict = {}
             neighbor_dict = datamgr_proxy.mTaskNeighbors.copy()
+            if datamgr_proxy.mTaskNeighborsAvailable.is_set():
+                datamgr_proxy.mTaskNeighborsAvailable.clear()
             for taskid in range(1, MAX_SHOPTASK+1):
                 ti = {}
                 ti[taskid] = taskinfo[taskid] # single task info packed in dict 

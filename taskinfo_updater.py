@@ -14,15 +14,22 @@ logger = logging.getLogger("EpcLogger")
 #  Setup Initial Task Info 
 # Fix: Change it to reading from a config file
 ti = TaskInfo()
-task1 = ShopTask(id=1,  x=1507,  y=944)
-task2 = ShopTask(id=2,  x=2431,  y=2264)
-task3 = ShopTask(id=3,  x=1042,  y=1973)
+task1 = ShopTask(id=1,  x=950,  y=840)
+task2 = ShopTask(id=2,  x=1797,  y=713)
+task3 = ShopTask(id=3,  x=1848,  y=1713)
+task4 = ShopTask(id=4,  x=535,  y=1596)
+#task5 = ShopTask(id=5,  x=2431,  y=2264)
+#task6 = ShopTask(id=6,  x=1042,  y=1973)
 ti.AddTaskInfo(1,  task1.Info()) 
 ti.AddTaskInfo(2,  task2.Info())
 ti.AddTaskInfo(3,  task3.Info())
+ti.AddTaskInfo(4,  task4.Info()) 
+#ti.AddTaskInfo(5,  task5.Info())
+#ti.AddTaskInfo(6,  task6.Info())
+# LogFiles
+
 taskinfo = copy.deepcopy(ti.all)
 
-# LogFiles
 TASK_URGENCY_LOG = "UrgencyLog-" +\
     time.strftime("%Y%b%d-%H%M%S", time.gmtime()) + ".txt"
 TASK_WORKERS_LOG = "WorkersLog-" +\
@@ -59,22 +66,22 @@ def GetTaskUrgency(taskid,  urg):
 			tid = eval(str(v))
 			if(tid == taskid):
 				worker_list.append(rid)
-		logger.info("Task %d Workers searched", taskid)
-		print "Task %d Workers: %s" %taskid
+		#logger.info("Task %d Workers searched", taskid)
+		print "Task %d Workers:" %taskid
 		print worker_list
+		workers= len(worker_list)
+		if workers > 0:
+			urgency = urg - workers * DELTA_TASK_URGENCY_DEC
+		elif workers == 0:
+			urgency = urg +  DELTA_TASK_URGENCY_INC
+		else:
+			logger.warn("worker count not updated")
+		if urgency > 1:
+			urgency = 1
+		elif urgency < 0:
+			urgency = 0
 	except Exception, e:
-		logger.warn("@GetTaskUrgency(): worker count unavailable %s", e)
-	workers= len(worker_list)
-	if workers > 0:
-		urgency = urg - workers * DELTA_TASK_URGENCY_DEC
-	elif workers == 0:
-		urgency = urg +  DELTA_TASK_URGENCY_INC
-	else:
-		logger.warn("worker count not updated")
-	if urgency > 1:
-		urgency = 1
-	elif urgency < 0:
-		urgency = 0
+	    print "@GetTaskUrgency():", e
    # Save data into log
 	PrepareLogMsg(urgency,  workers)
 	logger.info("task %d, urgency:%f", taskid, urgency)
@@ -93,7 +100,9 @@ def UpdateTaskInfo():
 			#print task
 	#except Exception, e:
 		#print "Err @UpdateTaskInfo(): %s", e
-		datamgr_proxy.mTaskInfoAvailable.set()
+		if (not datamgr_proxy.mTaskInfoAvailable.is_set()):
+		    print "Setting TASKINFO AVAILABLE"
+		    datamgr_proxy.mTaskInfoAvailable.set()
 	#print "Updated ti %s" %datamgr_proxy.mTaskInfo
 
 def InitLogFiles():
@@ -126,7 +135,7 @@ def UpdateLogFiles():
 
 def updater_main(datamgr):
 	InitLogFiles()
-	global datamgr_proxy,  taskurg
+	global datamgr_proxy,  taskinfo, taskurg
 	datamgr_proxy = datamgr
 	#print "DMP ti1 %s" %id(datamgr_proxy.mTaskInfo)
 	taskurg = INIT_TASK_URGENCY
@@ -142,7 +151,7 @@ def updater_main(datamgr):
 			print "@updater:"
 			UpdateTaskInfo()
 			UpdateLogFiles()
-			time.sleep(TASK_INFO_UPDATE_FREQ)
+			time.sleep(TASK_INFO_UPDATE_FREQ/2)
 	except (KeyboardInterrupt, SystemExit):
 			print "User requested exit... TaskInfoUpdater shutting down now"
 			sys.exit(0)
