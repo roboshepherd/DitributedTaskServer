@@ -9,7 +9,11 @@ from DistributedTaskServer.utils import *
 
 logger = logging.getLogger("EpcLogger")
 
-# should be passed by caller
+
+def robot_signal_handler(sig,  robotid,  taskid):
+	print "Caught signal  %s (in robot signal handler) "  %(sig)
+	print "Robot: %i, engaged in %i" %(robotid, taskid)  
+	save_task_status(robotid,  taskid)
  
 def task_neighbor_signal_handler(taskid, neighbors):
 	global datamgr_proxy
@@ -25,7 +29,7 @@ def task_neighbor_signal_handler(taskid, neighbors):
 	except Exception, e:
 		print "Err in task_neighbor_signal_handler():", e
 
-def pose_signal_handler(sig,  robotid,  taskid):
+def robot_signal_handler(sig,  robotid,  taskid):
 	global datamgr_proxy
 	print "Caught signal  %s (in robot signal handler) "  %(sig)
 	print "Robot: %i, engaged in %i" %(robotid, taskid)  
@@ -35,8 +39,6 @@ def pose_signal_handler(sig,  robotid,  taskid):
 		datamgr_proxy.mTaskWorkers[robotid] = taskid
 		print "Save Task Status:"
 		print datamgr_proxy.mTaskWorkers
-		if (not datamgr_proxy.mTaskNeighborsAvailable.is_set()):
-			datamgr_proxy.mTaskNeighborsAvailable.set()
 	except Exception, e:
 		print "Err in save_task_status():", e
 
@@ -63,7 +65,7 @@ def listener_main(data_mgr,  dbus_iface= DBUS_IFACE_EPUCK,\
 	dbus_paths = GetDBusPaths(robots_cfg)
 	try:
 		for p in dbus_paths:
-			bus.add_signal_receiver(pose_signal_handler, dbus_interface =\
+			bus.add_signal_receiver(robot_signal_handler, dbus_interface =\
 				dbus_iface, path= p,  signal_name = sig)
 		for task in range(1, MAX_SHOPTASK+1):
 			p = DBUS_TASK_PATH_BASE + str(task)

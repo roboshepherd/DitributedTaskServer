@@ -41,10 +41,10 @@ updater_step = 0
 def TimeStampLogMsg():
 	global   urgency_log,  workers_log, updater_step
 	updater_step = updater_step + 1
-	urgency_log = time.strftime("%H:%M:%S", time.gmtime())\
-		+ "; " + str(updater_step)
-	workers_log = time.strftime("%H:%M:%S", time.gmtime())\
-		+ "; " + str(updater_step)
+	urgency_log = str(time.time()) + "; " +\
+	 time.strftime("%H:%M:%S", time.gmtime()) + "; " + str(updater_step)
+	workers_log = str(time.time()) + "; " +\
+	 time.strftime("%H:%M:%S", time.gmtime()) + "; " + str(updater_step)
     
 def PrepareLogMsg(urgency,  workers):
     global   urgency_log,  workers_log
@@ -108,7 +108,7 @@ def UpdateTaskInfo():
 def InitLogFiles():
     f1 = open(TASK_URGENCY_LOG,  "w")
     f2 = open(TASK_WORKERS_LOG,  "w")
-    header = "#Time(HH:MM:SS); Step#"
+    header = "##;## \n Time; HH:MM:SS; Step#"
     for x in xrange(1, MAX_SHOPTASK+1):
         header += "; "
         header += "Task"
@@ -151,7 +151,7 @@ def updater_main(datamgr):
 			print "@updater:"
 			UpdateTaskInfo()
 			UpdateLogFiles()
-			time.sleep(TASK_INFO_UPDATE_FREQ/2)
+			time.sleep(TASK_INFO_UPDATE_FREQ)
 	except (KeyboardInterrupt, SystemExit):
 			print "User requested exit... TaskInfoUpdater shutting down now"
 			sys.exit(0)
