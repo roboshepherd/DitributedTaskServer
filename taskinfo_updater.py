@@ -76,10 +76,10 @@ def GetTaskUrgency(taskid,  urg):
 			urgency = urg +  DELTA_TASK_URGENCY_INC
 		else:
 			logger.warn("worker count not updated")
-		if urgency > 1:
-			urgency = 1
-		elif urgency < 0:
-			urgency = 0
+		if urgency > MAX_TASK_URGENCY:
+			urgency = MAX_TASK_URGENCY
+		elif urgency < MIN_TASK_URGENCY:
+			urgency = MIN_TASK_URGENCY
 	except Exception, e:
 	    print "@GetTaskUrgency():", e
    # Save data into log
