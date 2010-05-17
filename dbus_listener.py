@@ -9,7 +9,26 @@ from DistributedTaskServer.utils import *
 
 logger = logging.getLogger("EpcLogger")
 
+def tracker_pose_signal_handler(x, y, theta):
+    global datamgr_proxy
+    print "New pose signal listened" 
+    try:
+        if (not datamgr_proxy.mTrackerAlive.is_set()):
+            datamgr_proxy.mTrackerAlive.set()
+        #print "@SwisTrack monitor: Alive"
+    except Exception, e:
+        print "Err in tracker_pose_signal_handler():", e
 
+def updater_interrupt_handler(state):
+    global datamgr_proxy
+    print "New server state requested %s" %(state)
+    try:
+        datamgr_proxy.mTaskUpdaterState[TASK_INFO_UPDTAER_STATE] = str(state)
+        datamgr_proxy.mTaskUpdaterStateUpdated.set()
+        print "Req. datamgr_proxy.mTaskUpdaterState: "
+        print datamgr_proxy.mTaskUpdaterState[TASK_INFO_UPDTAER_STATE]
+    except Exception, e:
+        print "Err in updater_interrupt_handler():", e
 def robot_signal_handler(sig,  robotid,  taskid):
 	print "Caught signal  %s (in robot signal handler) "  %(sig)
 	print "Robot: %i, engaged in %i" %(robotid, taskid)  

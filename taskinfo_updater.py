@@ -6,6 +6,7 @@ import random
 import sys
 
 from RILCommonModules.RILSetup import  *
+from RILCommonModules.LiveGraph import *
 from RILCommonModules.task_info import *
 from DistributedTaskServer.data_manager import *
 
@@ -14,10 +15,10 @@ logger = logging.getLogger("EpcLogger")
 #  Setup Initial Task Info 
 # Fix: Change it to reading from a config file
 ti = TaskInfo()
-task1 = ShopTask(id=1,  x=950,  y=840)
-task2 = ShopTask(id=2,  x=1797,  y=713)
-task3 = ShopTask(id=3,  x=1848,  y=1713)
-task4 = ShopTask(id=4,  x=535,  y=1596)
+task1 = ShopTask(id=1,  x=1847,  y=1266)
+task2 = ShopTask(id=2,  x=2715,  y=1696)
+task3 = ShopTask(id=3,  x=1104,  y=1718)
+task4 = ShopTask(id=4,  x=1782,  y=472)
 #task5 = ShopTask(id=5,  x=2431,  y=2264)
 #task6 = ShopTask(id=6,  x=1042,  y=1973)
 ti.AddTaskInfo(1,  task1.Info()) 
@@ -30,6 +31,42 @@ ti.AddTaskInfo(4,  task4.Info())
 
 taskinfo = copy.deepcopy(ti.all)
 
+# log robot workers status
+#---------------------Log recevd. signal/data  ---------------------
+class StatusLogger():
+    def __init__(self):
+        self.writer = None  # for logging recvd. pose signal      
+        self.step = 0
+
+    def InitLogFiles(self):
+        name = "TaskStatus"
+        now = time.strftime("%Y%b%d-%H%M%S", time.gmtime())
+        desc = "logged in centralized communication mode from: " + now
+        # prepare label
+        label = "TimeStamp;HH:MM:SS;StepCounter;TaskID;RobotCount;RobotList \n"
+        # Data context
+        ctx = DataCtx(name, label, desc)
+        # Signal Logger
+        self.writer = DataWriter("TIUpdater", ctx, now)
+
+    def _GetCommonHeader(self):
+        sep = DATA_SEP
+        ts = str(time.time()) + sep + time.strftime("%H:%M:%S", time.gmtime())
+        self.step = self.step + 1
+        header = ts + sep + str(self.step)
+        return header
+    
+    def AppendLog(self, taskid, robotlist):        
+        sep = DATA_SEP
+        workers = len(robotlist)
+        robotlist.sort() 
+        log = self._GetCommonHeader()\
+         + sep + str(workers) + sep + str(robotlist) + "\n"
+        try: 
+            self.writer.AppendData(log)
+        except:
+            print "TaskStatus logging failed"
+            logger.warn("TaskStatus logging failed")
 TASK_URGENCY_LOG = "UrgencyLog-" +\
     time.strftime("%Y%b%d-%H%M%S", time.gmtime()) + ".txt"
 TASK_WORKERS_LOG = "WorkersLog-" +\
@@ -54,38 +91,43 @@ def PrepareLogMsg(urgency,  workers):
     workers_log += workers_msg
 
 def GetTaskUrgency(taskid,  urg):
-	global  datamgr_proxy
-	# urgency 0~1
-	urgency = urg
-	workers = 0
-	worker_list = []
-	try:
-		worker_dict = datamgr_proxy.mTaskWorkers
-		for k, v in worker_dict.items():
-			rid = eval(str(k))
-			tid = eval(str(v))
-			if(tid == taskid):
-				worker_list.append(rid)
-		#logger.info("Task %d Workers searched", taskid)
-		print "Task %d Workers:" %taskid
-		print worker_list
-		workers= len(worker_list)
-		if workers > 0:
-			urgency = urg - workers * DELTA_TASK_URGENCY_DEC
-		elif workers == 0:
-			urgency = urg +  DELTA_TASK_URGENCY_INC
-		else:
-			logger.warn("worker count not updated")
-		if urgency > MAX_TASK_URGENCY:
-			urgency = MAX_TASK_URGENCY
-		elif urgency < MIN_TASK_URGENCY:
-			urgency = MIN_TASK_URGENCY
-	except Exception, e:
-	    print "@GetTaskUrgency():", e
-   # Save data into log
-	PrepareLogMsg(urgency,  workers)
-	logger.info("task %d, urgency:%f", taskid, urgency)
-	return urgency
+    global  datamgr_proxy, status_logger
+    # urgency 0~1
+    urgency = urg
+    workers = 0
+    worker_list = []
+    worker_dict = {}
+    try:
+	worker_dict = datamgr_proxy.mTaskWorkers
+	logger.info("Worker dict: %s", worker_dict)
+	for k, v in worker_dict.items():
+		rid = eval(str(k))
+		tid = eval(str(v))
+		if(tid == taskid):
+			worker_list.append(rid)
+	logger.info("Task %d Workers searched", taskid)
+	print "Task %d Workers: %s" %(taskid, worker_list)
+	print worker_list
+	logger.info("Task %d Workers worker_list: %s", taskid, worker_list)
+	status_logger.AppendLog(taskid, worker_list)
+    except Exception, e:
+	logger.warn("@GetTaskUrgency(): err %s", e)
+    workers= len(worker_list)
+    if workers > 0:
+	urgency = urg - workers * DELTA_TASK_URGENCY_DEC
+    elif workers == 0:
+	urgency = urg +  DELTA_TASK_URGENCY_INC
+    else:
+	logger.warn("worker count not updated")
+    if urgency > MAX_TASK_URGENCY:
+	urgency = MAX_TASK_URGENCY
+    elif urgency < MIN_TASK_URGENCY:
+	urgency = MIN_TASK_URGENCY
+# Save data into log
+    PrepareLogMsg(urgency,  workers)
+    logger.info("task %d, urgency:%f", taskid, urgency)
+    print "task %d, urgency:%f" %(taskid, urgency)
+    return urgency
 
 def UpdateTaskInfo():
 	global  datamgr_proxy
@@ -134,26 +176,38 @@ def UpdateLogFiles():
     workers_log = ''
 
 def updater_main(datamgr):
-	InitLogFiles()
-	global datamgr_proxy,  taskinfo, taskurg
-	datamgr_proxy = datamgr
-	#print "DMP ti1 %s" %id(datamgr_proxy.mTaskInfo)
-	taskurg = INIT_TASK_URGENCY
-	for k,  v in taskinfo.iteritems():
-		datamgr_proxy.mTaskInfo[k] =v
-		# simulating task worker signal recv.
-		#datamgr_proxy.mTaskWorkers[k] = [random.randint(1, 8)] * (k - 1)
-	print "@updater:"
-	print datamgr_proxy.mTaskInfo
-	datamgr_proxy.mTaskInfoAvailable.set()
-	try:
-		while True:
-			print "@updater:"
-			UpdateTaskInfo()
-			UpdateLogFiles()
-			time.sleep(TASK_INFO_UPDATE_FREQ)
-	except (KeyboardInterrupt, SystemExit):
-			print "User requested exit... TaskInfoUpdater shutting down now"
-			sys.exit(0)
+    InitLogFiles()
+    global datamgr_proxy,  taskurg, status_logger
+    datamgr_proxy = datamgr
+    #print "DMP ti1 %s" %id(datamgr_proxy.mTaskInfo)
+    taskurg = INIT_TASK_URGENCY
+    for k,  v in taskinfo.iteritems():
+	    datamgr_proxy.mTaskInfo[k] =v
+    # setup logging
+    status_logger = StatusLogger()
+    status_logger.InitLogFiles()
+    # real work starts
+    print "@updater:"
+    print datamgr_proxy.mTaskInfo
+    datamgr_proxy.mTaskInfoAvailable.set()
+    datamgr_proxy.mTaskUpdaterState[TASK_INFO_UPDTAER_STATE] =\
+     TASK_INFO_UPDATER_RUN
+    try:
+	while True:
+	    state =  str(datamgr_proxy.mTaskUpdaterState[TASK_INFO_UPDTAER_STATE])
+	    datamgr_proxy.mTaskUpdaterStateUpdated.clear()
+	    print "@TaskInfoUpdater:"
+	    #datamgr_proxy.mTrackerAlive.wait()
+	    if state == TASK_INFO_UPDATER_RUN:            
+		UpdateTaskInfo()
+		UpdateLogFiles()
+		time.sleep(TASK_INFO_UPDATE_FREQ)
+		print "\t TI updated."
+	    elif state == TASK_INFO_UPDATER_PAUSE:
+		datamgr_proxy.mTaskUpdaterStateUpdated.wait()
+		print "\t updater waiting..."
+    except (KeyboardInterrupt, SystemExit):
+	print "User requested exit... TaskInfoUpdater shutting down now"
+	sys.exit(0)
         
 

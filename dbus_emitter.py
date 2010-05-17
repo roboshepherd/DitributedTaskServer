@@ -5,6 +5,7 @@ import multiprocessing
 import logging,  logging.config
 
 from RILCommonModules.RILSetup import *
+from RILCommonModules.LiveGraph import *
 from RILCommonModules.task_info import *
 from RILCommonModules.pose import *
 from DistributedTaskServer.data_manager import *
@@ -12,6 +13,41 @@ from DistributedTaskServer.utils import *
 
 logger = logging.getLogger("EpcLogger")
 schedule = sched.scheduler(time.time, time.sleep)
+
+class EmissionLogger():
+    def __init__(self):
+        self.writer = None  # for logging emitted taskinfo signal      
+        self.step = 0
+
+    def InitLogFiles(self):
+        name = "TaskPerception"
+        now = time.strftime("%Y%b%d-%H%M%S", time.gmtime())
+        desc = "logged in local communication mode from: " + now
+        # prepare label
+        label = "TimeStamp;HH:MM:SS;StepCounter;TaskID;RobotCount;RobotList \n"
+        # Data context
+        ctx = DataCtx(name, label, desc)
+        # Signal Logger
+        self.writer = DataWriter("DBusEmitter", ctx, now)
+
+    def _GetCommonHeader(self):
+        sep = DATA_SEP
+        ts = str(time.time()) + sep + time.strftime("%H:%M:%S", time.gmtime())
+        self.step = self.step + 1
+        header = ts + sep + str(self.step)
+        return header
+    
+    def AppendLog(self, taskid, robotlist):        
+        sep = DATA_SEP
+        neighbors = len(robotlist)
+        robotlist.sort() 
+        log = self._GetCommonHeader()\
+         + sep + str(neighbors) + sep + str(robotlist) + "\n"
+        try: 
+            self.writer.AppendData(log)
+        except:
+            print "TaskPerception logging failed"
+            logger.warn("TaskPerception logging failed")
 
 class TaskInfoSignal(dbus.service.Object):
     def __init__(self, object_path):
@@ -32,7 +68,7 @@ def emit_task_signal(sig1,  inc):
         #print "At emit_task_signal():"
         schedule.enter(inc, 0, emit_task_signal, (sig1,  inc))
         # re-schedule to repeat this function
-        global datamgr_proxy,  task_signal
+        global datamgr_proxy,  task_signal, emit_logger
         try:
             datamgr_proxy.mTaskInfoAvailable.wait() # taskinfo_updater event
             taskinfo = datamgr_proxy.mTaskInfo.copy() # use a soft copy
@@ -64,8 +100,12 @@ def emit_task_signal(sig1,  inc):
                     for robotid in neighbors:
                         #task_signal[int(robotid)].TaskInfo(sig1,\
                         # taskinfo[taskid])
-                        print "Emit taskinfo signal on /robot%i" %robotid
+                        log =  "Emit taskinfo signal on /robot%i" %robotid
+                        print log
+                        logger.info(log)
                         task_signal[robotid -1 ].TaskInfo(sig1, ti)
+                    # for data analysis
+                    emit_logger.AppendLog(taskid, neighbors)
                 else:
                     continue
         except Exception, e:
@@ -77,13 +117,16 @@ def emitter_main(datamgr,  dbus_iface= DBUS_IFACE_TASK_SERVER,\
             dbus_path = DBUS_PATH_TASK_SERVER, \
             sig1= SIG_TASK_INFO,  delay = TASK_INFO_EMIT_FREQ,\
             robots_cfg=ROBOTS_PATH_CFG_FILE):
-        global task_signal,  datamgr_proxy, loop
+        global task_signal,  datamgr_proxy, loop, emit_logger
         datamgr_proxy = datamgr
         dbus_paths = GetDBusPaths(robots_cfg)
         # proceed only after taskinfo is populated
         datamgr_proxy.mTaskInfoAvailable.wait() 
         dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
         session_bus = dbus.SessionBus()
+        # init logging
+        emit_logger = EmissionLogger()
+        emit_logger.InitLogFiles()
         print "@Emitter-- TaskInfoAvailable %s"\
             %datamgr_proxy.mTaskInfoAvailable.is_set() 
         try:

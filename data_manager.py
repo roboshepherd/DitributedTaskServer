@@ -9,6 +9,11 @@ class DataManager:
         # set by taskinfo updater 
         self.mTaskWorkers = self.mgr.dict()  
         # key:robotid val: taskid recvd. by dbus client
+        ## Manage task server's task info updtater state 
+        #(pause/play style) by a dbus signal
+        self.mTaskUpdaterState =  self.mgr.dict() 
+        self.mTaskUpdaterStateUpdated = self.mgr.Event()
+        self.mTrackerAlive = self.mgr.Event() 
         
         self.mTaskNeighbors = self.mgr.dict()
         #key: taskid, val: neighboring robots around the task

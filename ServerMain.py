@@ -5,7 +5,7 @@ import time
 import sys
 
 logging.config.fileConfig("\
-/home/newport-ril/centralized-expt/CentralizedTaskServer/logging.conf")
+/home/newport-ril/centralized-expt/DistributedTaskServer/logging.conf")
 logger = logging.getLogger("EpcLogger")
 multiprocessing.log_to_stderr(logging.DEBUG)
 
@@ -13,19 +13,26 @@ from RILCommonModules.RILSetup import *
 from DistributedTaskServer.data_manager import *
 from DistributedTaskServer.dbus_emitter import *
 from DistributedTaskServer.dbus_listener import *
+from DistributedTaskServer.swistrack_monitor import *
 from DistributedTaskServer.taskinfo_updater import *
-
 def main():
         logging.debug("--- Start EPC---")
         updater .start()
         emitter.start()
         listener.start()
+        tracker_monitor.start()
         # Ending....
-        time.sleep(3)
-        updater.join()
-        emitter.join()
-        listener.join()
-        logging.debug("--- End EPC---")
+        try:
+            time.sleep(3)
+            updater.join()
+            emitter.join()
+            listener.join()
+            tracker_monitor.join()
+        except (KeyboardInterrupt, SystemExit):
+            logging.debug("--- End EPC---")
+            print "User requested exit..TaskServer shutting down now"
+            logging.debug("--- End EPC---")                
+            sys.exit(0)
 
 
 if __name__ == '__main__':
@@ -37,7 +44,7 @@ if __name__ == '__main__':
     else:
         robots_cfg = sys.argv[1]
     # init stuff
-	dm = DataManager()
+    dm = DataManager()
     sig1 = SIG_TASK_INFO
     sig2 = SIG_TASK_STATUS
     delay = TASK_INFO_EMIT_FREQ # interval between signals
@@ -55,6 +62,10 @@ if __name__ == '__main__':
         name="TaskStatusReceiver",\
         args=(dm,  DBUS_IFACE_EPUCK, DBUS_PATH_BASE, robots_cfg,\
             sig2,   delay))
+    tracker_monitor = multiprocessing.Process(\
+        target=monitor_main,\
+        name="SwisTrackMonitor",\
+        args=(dm, ))
     main()   
 
 
