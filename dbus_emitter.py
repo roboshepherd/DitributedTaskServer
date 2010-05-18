@@ -65,52 +65,52 @@ class TaskInfoSignal(dbus.service.Object):
 
 #Emit DBus-Signal
 def emit_task_signal(sig1,  inc):
-        #print "At emit_task_signal():"
-        schedule.enter(inc, 0, emit_task_signal, (sig1,  inc))
-        # re-schedule to repeat this function
-        global datamgr_proxy,  task_signal, emit_logger
-        try:
-            datamgr_proxy.mTaskInfoAvailable.wait() # taskinfo_updater event
-            taskinfo = datamgr_proxy.mTaskInfo.copy() # use a soft copy
-            if datamgr_proxy.mTaskInfoAvailable.is_set():
-                datamgr_proxy.mTaskInfoAvailable.clear()
-            #logging.debug("TaskInfo@Emitter: %s",  taskinfo)
-            print "\tEmitting TaskInfo signal>>> "
-            datamgr_proxy.mTaskNeighborsAvailable.wait() # dbus_listener event                 
-            neighbor_dict = {}
-            neighbor_dict = datamgr_proxy.mTaskNeighbors.copy()
-            if datamgr_proxy.mTaskNeighborsAvailable.is_set():
-                datamgr_proxy.mTaskNeighborsAvailable.clear()
-            for taskid in range(1, MAX_SHOPTASK+1):
-                ti = {}
-                ti[taskid] = taskinfo[taskid] # single task info packed in dict 
-                #print "taskinfo: ", ti
-                neighbors = []
-                try:                
-                    if not neighbor_dict[taskid]:
-                        break
-                    elif neighbor_dict[taskid]:
-                        neighbors = neighbor_dict[taskid]
-                        #print "neighbors: ", neighbors
-                except Exception, e:                    
-                    #logger.info("Empty neighbor_dict for task: %s", e)
-                    pass
-               
-                if neighbors:
-                    for robotid in neighbors:
-                        #task_signal[int(robotid)].TaskInfo(sig1,\
-                        # taskinfo[taskid])
-                        log =  "Emit taskinfo signal on /robot%i" %robotid
-                        print log
-                        logger.info(log)
-                        task_signal[robotid -1 ].TaskInfo(sig1, ti)
-                    # for data analysis
-                    emit_logger.AppendLog(taskid, neighbors)
-                else:
-                    continue
-        except Exception, e:
-                logger.warn("Err in emit_task_signal(): %s", e)        
-        taskinfo = None # reset 
+    #print "At emit_task_signal():"
+    schedule.enter(inc, 0, emit_task_signal, (sig1,  inc))
+    # re-schedule to repeat this function
+    global datamgr_proxy,  task_signal, emit_logger
+    try:
+        datamgr_proxy.mTaskInfoAvailable.wait() # taskinfo_updater event
+        taskinfo = datamgr_proxy.mTaskInfo.copy() # use a soft copy
+        if datamgr_proxy.mTaskInfoAvailable.is_set():
+            datamgr_proxy.mTaskInfoAvailable.clear()
+        #logging.debug("TaskInfo@Emitter: %s",  taskinfo)
+        print "\tEmitting TaskInfo signal>>> "
+        datamgr_proxy.mTaskNeighborsAvailable.wait() # dbus_listener event                 
+        neighbor_dict = {}
+        neighbor_dict = datamgr_proxy.mTaskNeighbors.copy()
+        if datamgr_proxy.mTaskNeighborsAvailable.is_set():
+            datamgr_proxy.mTaskNeighborsAvailable.clear()
+        for taskid in range(1, MAX_SHOPTASK+1):
+            ti = {}
+            ti[taskid] = taskinfo[taskid] # single task info packed in dict 
+            #print "taskinfo: ", ti
+            neighbors = []
+            try:                
+                if not neighbor_dict[taskid]:
+                    break
+                elif neighbor_dict[taskid]:
+                    neighbors = neighbor_dict[taskid]
+                    #print "neighbors: ", neighbors
+            except Exception, e:                    
+                #logger.info("Empty neighbor_dict for task: %s", e)
+                pass
+           
+            if neighbors:
+                for robotid in neighbors:
+                    #task_signal[int(robotid)].TaskInfo(sig1,\
+                    # taskinfo[taskid])
+                    log =  "Emit taskinfo signal on /robot%i" %robotid
+                    print log
+                    logger.info(log)
+                    task_signal[robotid -1 ].TaskInfo(sig1, ti)
+                # for data analysis
+                emit_logger.AppendLog(taskid, neighbors)
+            else:
+                continue
+    except Exception, e:
+            logger.warn("Err in emit_task_signal(): %s", e)        
+    taskinfo = None # reset 
 
 
 def emitter_main(datamgr,  dbus_iface= DBUS_IFACE_TASK_SERVER,\
