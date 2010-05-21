@@ -103,7 +103,7 @@ def emit_task_signal(sig1,  inc):
                     log =  "Emit taskinfo signal on /robot%i" %robotid
                     print log
                     logger.info(log)
-                    task_signal[robotid -1 ].TaskInfo(sig1, ti)
+                    task_signal[robotid].TaskInfo(sig1, ti)
                 # for data analysis
                 emit_logger.AppendLog(taskid, neighbors)
             else:

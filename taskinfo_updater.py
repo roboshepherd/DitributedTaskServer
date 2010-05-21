@@ -4,7 +4,7 @@ import time
 import copy
 import random
 import sys
-
+from numpy import *
 from RILCommonModules.RILSetup import  *
 from RILCommonModules.LiveGraph import *
 from RILCommonModules.task_info import *
@@ -35,7 +35,8 @@ taskinfo = copy.deepcopy(ti.all)
 #---------------------Log recevd. signal/data  ---------------------
 class StatusLogger():
     def __init__(self):
-        self.writer = None  # for logging recvd. pose signal      
+        self.writer = None  # for logging recvd. pose signal
+	self.known_tasks_writer = None      
         self.step = 0
 
     def InitLogFiles(self):
@@ -48,6 +49,10 @@ class StatusLogger():
         ctx = DataCtx(name, label, desc)
         # Signal Logger
         self.writer = DataWriter("TIUpdater", ctx, now)
+	name = "KnownTasks"
+	label = "TimeStamp;HH:MM:SS;Step;TotalKnowers;Known_Tasks;TotalInfo\n"
+	ctx = DataCtx(name, label, desc)
+	self.known_tasks_writer = DataWriter("TIUpdater", ctx, now)
 
     def _GetCommonHeader(self):
         sep = DATA_SEP
@@ -67,6 +72,24 @@ class StatusLogger():
         except:
             print "TaskStatus logging failed"
             logger.warn("TaskStatus logging failed")
+
+    def AppendInfoLog(self,  knower_dict):        
+        sep = DATA_SEP
+	knowers = len(knower_dict)
+	total_info = 0
+	knowledge = eval(knowers_dict)
+	for v in knowers_dict.items()
+	    total_info += int(eval(v))
+        log = self._GetCommonHeader()\
+	 + sep + str(knowers) + sep + str(knowledge) +\
+	 + sep + str(total_info) \"\n"
+        try: 
+            self.known_tasks_writer.AppendData(log)
+        except:
+            print "Known Tasks logging failed"
+            logger.warn("Known Tasks logging failed")
+
+    
 TASK_URGENCY_LOG = "UrgencyLog-" +\
     time.strftime("%Y%b%d-%H%M%S", time.gmtime()) + ".txt"
 TASK_WORKERS_LOG = "WorkersLog-" +\
@@ -97,8 +120,11 @@ def GetTaskUrgency(taskid,  urg):
     workers = 0
     worker_list = []
     worker_dict = {}
+    knower_list = []
+    knower_dict = {}
     try:
 	worker_dict = datamgr_proxy.mTaskWorkers
+	
 	logger.info("Worker dict: %s", worker_dict)
 	for k, v in worker_dict.items():
 		rid = eval(str(k))
@@ -130,7 +156,7 @@ def GetTaskUrgency(taskid,  urg):
     return urgency
 
 def UpdateTaskInfo():
-	global  datamgr_proxy
+	global  datamgr_proxy, 
 	#print "DMP ti2 %s" %id(datamgr_proxy.mTaskInfo)
 	# Put TimeStamp on logs
 	TimeStampLogMsg()
@@ -146,6 +172,9 @@ def UpdateTaskInfo():
 		    print "Setting TASKINFO AVAILABLE"
 		    datamgr_proxy.mTaskInfoAvailable.set()
 	#print "Updated ti %s" %datamgr_proxy.mTaskInfo
+	# known_task  loffing
+	knower_dict = datamgr_proxy.mKnownTasks.copy() 
+	status_logger.AppendInfoLog(knower_dict)
 
 def InitLogFiles():
     f1 = open(TASK_URGENCY_LOG,  "w")

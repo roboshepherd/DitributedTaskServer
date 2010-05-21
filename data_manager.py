@@ -17,4 +17,7 @@ class DataManager:
         
         self.mTaskNeighbors = self.mgr.dict()
         #key: taskid, val: neighboring robots around the task
-        self.mTaskNeighborsAvailable = self.mgr.Event() 
+        self.mTaskNeighborsAvailable = self.mgr.Event()
+
+        # number of tasks known by robots: key: robotid, val: known task count
+        self.mKnownTasks = self.mgr.dict()
