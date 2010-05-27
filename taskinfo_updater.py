@@ -1,7 +1,7 @@
 import multiprocessing
 import logging, logging.config
 import time
-import copy
+from copy import deepcopy
 import random
 import sys
 from numpy import *
@@ -12,13 +12,14 @@ from DistributedTaskServer.data_manager import *
 
 logger = logging.getLogger("EpcLogger")
 
+
 #  Setup Initial Task Info 
 # Fix: Change it to reading from a config file
 ti = TaskInfo()
-task1 = ShopTask(id=1,  x=1847,  y=1266)
-task2 = ShopTask(id=2,  x=2715,  y=1696)
-task3 = ShopTask(id=3,  x=1104,  y=1718)
-task4 = ShopTask(id=4,  x=1782,  y=472)
+task1 = ShopTask(id=1,  x=2344,  y=960)
+task2 = ShopTask(id=2,  x=2891,  y=1840)
+task3 = ShopTask(id=3,  x=1699,  y=1864)
+task4 = ShopTask(id=4,  x=1558,  y=730)
 #task5 = ShopTask(id=5,  x=2431,  y=2264)
 #task6 = ShopTask(id=6,  x=1042,  y=1973)
 ti.AddTaskInfo(1,  task1.Info()) 
@@ -29,7 +30,7 @@ ti.AddTaskInfo(4,  task4.Info())
 #ti.AddTaskInfo(6,  task6.Info())
 # LogFiles
 
-taskinfo = copy.deepcopy(ti.all)
+taskinfo = deepcopy(ti.all)
 
 # log robot workers status
 #---------------------Log recevd. signal/data  ---------------------
@@ -42,7 +43,7 @@ class StatusLogger():
     def InitLogFiles(self):
         name = "TaskStatus"
         now = time.strftime("%Y%b%d-%H%M%S", time.gmtime())
-        desc = "logged in centralized communication mode from: " + now
+        desc = "logged in local communication mode from: " + now
         # prepare label
         label = "TimeStamp;HH:MM:SS;StepCounter;TaskID;RobotCount;RobotList \n"
         # Data context
@@ -50,7 +51,7 @@ class StatusLogger():
         # Signal Logger
         self.writer = DataWriter("TIUpdater", ctx, now)
 	name = "KnownTasks"
-	label = "TimeStamp;HH:MM:SS;Step;TotalKnowers;Known_Tasks;TotalInfo\n"
+	label = "TimeStamp;HH:MM:SS;Step;TotalKnowers;KnowersList;TotalInfo\n"
 	ctx = DataCtx(name, label, desc)
 	self.known_tasks_writer = DataWriter("TIUpdater", ctx, now)
 
@@ -74,20 +75,23 @@ class StatusLogger():
             logger.warn("TaskStatus logging failed")
 
     def AppendInfoLog(self,  knower_dict):        
-        sep = DATA_SEP
-	knowers = len(knower_dict)
-	total_info = 0
-	knowledge = eval(knowers_dict)
-	for v in knowers_dict.items()
-	    total_info += int(eval(v))
-        log = self._GetCommonHeader()\
-	 + sep + str(knowers) + sep + str(knowledge) +\
-	 + sep + str(total_info) \"\n"
-        try: 
+        sep = DATA_SEP	
+	try:
+	    knowers = len(knower_dict)
+	    logger.info("logging knowers..: %d", knowers)
+	    total_info = 0
+	    knowerlist = []
+	    for k, v in knower_dict.items():		
+		total_info = total_info  + int(v)
+		knowerlist.append(str(k))
+	    logger.info("writing into KnownTasks total: %d",total_info)
+	    log = self._GetCommonHeader()\
+	     + sep + str(knowers) + sep + str(knowerlist)\
+	     + sep + str(total_info) + "\n"
             self.known_tasks_writer.AppendData(log)
-        except:
-            print "Known Tasks logging failed"
-            logger.warn("Known Tasks logging failed")
+        except Exception, e:
+            err = "Known Tasks logging failed %s", e
+            logger.warn(err)
 
     
 TASK_URGENCY_LOG = "UrgencyLog-" +\
@@ -120,11 +124,8 @@ def GetTaskUrgency(taskid,  urg):
     workers = 0
     worker_list = []
     worker_dict = {}
-    knower_list = []
-    knower_dict = {}
     try:
 	worker_dict = datamgr_proxy.mTaskWorkers
-	
 	logger.info("Worker dict: %s", worker_dict)
 	for k, v in worker_dict.items():
 		rid = eval(str(k))
@@ -156,25 +157,34 @@ def GetTaskUrgency(taskid,  urg):
     return urgency
 
 def UpdateTaskInfo():
-	global  datamgr_proxy, 
+	global  datamgr_proxy
 	#print "DMP ti2 %s" %id(datamgr_proxy.mTaskInfo)
 	# Put TimeStamp on logs
 	TimeStampLogMsg()
-	#try:
-	for taskid, ti  in  datamgr_proxy.mTaskInfo.items():
+	try:
+	    for taskid, ti  in  datamgr_proxy.mTaskInfo.items():
 		urg= ti[TASK_INFO_URGENCY] 
 		ti[TASK_INFO_URGENCY] =   GetTaskUrgency(taskid,  urg)
 		datamgr_proxy.mTaskInfo[taskid] = ti
-			#print task
-	#except Exception, e:
-		#print "Err @UpdateTaskInfo(): %s", e
-		if (not datamgr_proxy.mTaskInfoAvailable.is_set()):
-		    print "Setting TASKINFO AVAILABLE"
-		    datamgr_proxy.mTaskInfoAvailable.set()
-	#print "Updated ti %s" %datamgr_proxy.mTaskInfo
-	# known_task  loffing
-	knower_dict = datamgr_proxy.mKnownTasks.copy() 
-	status_logger.AppendInfoLog(knower_dict)
+	except Exception, e:
+	    err = "Err @UpdateTaskInfo(): %s", e
+	    logger.warn(err)
+	    if (not datamgr_proxy.mTaskInfoAvailable.is_set()):
+		print "Setting TASKINFO AVAILABLE"
+		datamgr_proxy.mTaskInfoAvailable.set()
+	logger.info("Updated ti %s", datamgr_proxy.mTaskInfo)
+	
+
+def LogTaskInfoKnowledge():
+    global  datamgr_proxy, status_logger 
+    # known_task  logging
+    try:
+	knower_dict = datamgr_proxy.mKnownTasks.copy()
+	logger.info("logging knower_dict: %s", knower_dict)
+	status_logger.AppendInfoLog(knower_dict)	
+    except Exception, e:
+	err = "Err @UpdateTaskInfo(): %s", e
+	logger.warn(err)
 
 def InitLogFiles():
     f1 = open(TASK_URGENCY_LOG,  "w")
@@ -216,25 +226,30 @@ def updater_main(datamgr):
     status_logger = StatusLogger()
     status_logger.InitLogFiles()
     # real work starts
-    print "@updater:"
+    #print "@updater:"
     print datamgr_proxy.mTaskInfo
     datamgr_proxy.mTaskInfoAvailable.set()
     datamgr_proxy.mTaskUpdaterState[TASK_INFO_UPDTAER_STATE] =\
      TASK_INFO_UPDATER_RUN
     try:
-	while True:
+	for i in range(TASK_SELECTION_STEPS):
 	    state =  str(datamgr_proxy.mTaskUpdaterState[TASK_INFO_UPDTAER_STATE])
 	    datamgr_proxy.mTaskUpdaterStateUpdated.clear()
-	    print "@TaskInfoUpdater:"
+	    m =  "@TaskInfoUpdater: iter:%d" %i
+	    logger.debug(m)
 	    #datamgr_proxy.mTrackerAlive.wait()
 	    if state == TASK_INFO_UPDATER_RUN:            
 		UpdateTaskInfo()
 		UpdateLogFiles()
+		LogTaskInfoKnowledge()
 		time.sleep(TASK_INFO_UPDATE_FREQ)
-		print "\t TI updated."
+		m = "\t TI updated."
+		logger.debug(m)
+		datamgr_proxy.mTaskInfoAvailable.set()
 	    elif state == TASK_INFO_UPDATER_PAUSE:
 		datamgr_proxy.mTaskUpdaterStateUpdated.wait()
-		print "\t updater waiting..."
+		m = "\t updater waiting..."
+		logger.debug(m)
     except (KeyboardInterrupt, SystemExit):
 	print "User requested exit... TaskInfoUpdater shutting down now"
 	sys.exit(0)

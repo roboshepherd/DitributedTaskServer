@@ -41,7 +41,7 @@ class EmissionLogger():
         sep = DATA_SEP
         neighbors = len(robotlist)
         robotlist.sort() 
-        log = self._GetCommonHeader()\
+        log = self._GetCommonHeader() + + sep + str(taskid)\
          + sep + str(neighbors) + sep + str(robotlist) + "\n"
         try: 
             self.writer.AppendData(log)
@@ -69,13 +69,14 @@ def emit_task_signal(sig1,  inc):
     schedule.enter(inc, 0, emit_task_signal, (sig1,  inc))
     # re-schedule to repeat this function
     global datamgr_proxy,  task_signal, emit_logger
+    log =  "\t @Emitter Entering to emit TaskInfo signal>>> "
+    logger.debug(log)
     try:
-        datamgr_proxy.mTaskInfoAvailable.wait() # taskinfo_updater event
+        datamgr_proxy.mTaskInfoAvailable.wait() #<<-- taskinfo_updater event
         taskinfo = datamgr_proxy.mTaskInfo.copy() # use a soft copy
         if datamgr_proxy.mTaskInfoAvailable.is_set():
             datamgr_proxy.mTaskInfoAvailable.clear()
-        #logging.debug("TaskInfo@Emitter: %s",  taskinfo)
-        print "\tEmitting TaskInfo signal>>> "
+        #logging.debug("TaskInfo@Emitter: %s",  taskinfo)        
         datamgr_proxy.mTaskNeighborsAvailable.wait() # dbus_listener event                 
         neighbor_dict = {}
         neighbor_dict = datamgr_proxy.mTaskNeighbors.copy()

@@ -57,7 +57,8 @@ def robot_signal_handler(sig,  robotid,  taskid, known_tasks):
 		robotid = eval(str(robotid))
 		taskid = eval(str(taskid))
 		datamgr_proxy.mTaskWorkers[robotid] = taskid
-		datamgr_proxy.mKnownTasks[robotid] = known_tasks
+		if(taskid is not 0):
+		    datamgr_proxy.mKnownTasks[robotid] = eval(str(known_tasks))
 		print "Save Task Status:"
 		print datamgr_proxy.mTaskWorkers
 	except Exception, e:
