@@ -39,11 +39,11 @@ class EmissionLogger():
     
     def AppendLog(self, taskid, robotlist):        
         sep = DATA_SEP
-        neighbors = len(robotlist)
-        robotlist.sort() 
-        log = self._GetCommonHeader() + + sep + str(taskid)\
-         + sep + str(neighbors) + sep + str(robotlist) + "\n"
         try: 
+            neighbors = len(robotlist)
+            robotlist.sort() 
+            log = self._GetCommonHeader() + + sep + str(taskid)\
+             + sep + str(neighbors) + sep + str(robotlist) + "\n"        
             self.writer.AppendData(log)
         except:
             print "TaskPerception logging failed"
@@ -83,6 +83,7 @@ def emit_task_signal(sig1,  inc):
         if datamgr_proxy.mTaskNeighborsAvailable.is_set():
             datamgr_proxy.mTaskNeighborsAvailable.clear()
         for taskid in range(1, MAX_SHOPTASK+1):
+            logger.info("Emit taskinfo signal for task %i", taskid)
             ti = {}
             ti[taskid] = taskinfo[taskid] # single task info packed in dict 
             #print "taskinfo: ", ti
@@ -99,11 +100,7 @@ def emit_task_signal(sig1,  inc):
            
             if neighbors:
                 for robotid in neighbors:
-                    #task_signal[int(robotid)].TaskInfo(sig1,\
-                    # taskinfo[taskid])
-                    log =  "Emit taskinfo signal on /robot%i" %robotid
-                    print log
-                    logger.info(log)
+                    logger.info("Emit taskinfo signal on /robot%i", robotid)
                     task_signal[robotid].TaskInfo(sig1, ti)
                 # for data analysis
                 emit_logger.AppendLog(taskid, neighbors)
